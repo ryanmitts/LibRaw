@@ -217,11 +217,16 @@ int LibRaw::raw2image(void)
 void LibRaw::copy_fuji_uncropped(unsigned short cblack[4],
                                  unsigned short *dmaxp)
 {
+  int _fuji_row_count = int(S.raw_height) - int(S.top_margin) * 2;
 #if defined(LIBRAW_USE_OPENMP)
-#pragma omp parallel for schedule(dynamic) default(none) firstprivate(cblack) shared(dmaxp)
+#pragma omp parallel for schedule(dynamic) default(none) firstprivate(cblack, _fuji_row_count) shared(dmaxp)
 #endif
-  for (int row = 0; row < int(S.raw_height) - int(S.top_margin) * 2; row++)
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(_fuji_row_count, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) { const int row = (int)_gcd_i;
+#else
+  for (int row = 0; row < _fuji_row_count; row++)
   {
+#endif
     int col;
     unsigned short ldmax = 0;
     for (col = 0;
@@ -260,12 +265,29 @@ void LibRaw::copy_fuji_uncropped(unsigned short cblack[4],
     }
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp critical(dataupdate)
-#endif
     {
       if (*dmaxp < ldmax)
         *dmaxp = ldmax;
     }
+#elif defined(LIBRAW_USE_GCD)
+    {
+      ushort old_val, new_val;
+      do {
+        old_val = *dmaxp;
+        new_val = (ldmax > old_val) ? ldmax : old_val;
+      } while (old_val != new_val && !__sync_bool_compare_and_swap(dmaxp, old_val, new_val));
+    }
+#else
+    {
+      if (*dmaxp < ldmax)
+        *dmaxp = ldmax;
+    }
+#endif
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void LibRaw::copy_bayer(unsigned short cblack[4], unsigned short *dmaxp)
@@ -275,8 +297,12 @@ void LibRaw::copy_bayer(unsigned short cblack[4], unsigned short *dmaxp)
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(dynamic) default(none) shared(dmaxp) firstprivate(cblack, maxHeight)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(maxHeight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) { const int row = (int)_gcd_i;
+#else
   for (int row = 0; row < maxHeight ; row++)
   {
+#endif
     int col;
     unsigned short ldmax = 0;
     for (col = 0; col < S.width && col + S.left_margin < S.raw_width; col++)
@@ -297,12 +323,29 @@ void LibRaw::copy_bayer(unsigned short cblack[4], unsigned short *dmaxp)
     }
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp critical(dataupdate)
-#endif
     {
       if (*dmaxp < ldmax)
         *dmaxp = ldmax;
     }
+#elif defined(LIBRAW_USE_GCD)
+    {
+      ushort old_val, new_val;
+      do {
+        old_val = *dmaxp;
+        new_val = (ldmax > old_val) ? ldmax : old_val;
+      } while (old_val != new_val && !__sync_bool_compare_and_swap(dmaxp, old_val, new_val));
+    }
+#else
+    {
+      if (*dmaxp < ldmax)
+        *dmaxp = ldmax;
+    }
+#endif
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 int LibRaw::raw2image_ex(int do_subtract_black)

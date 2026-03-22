@@ -149,6 +149,9 @@ void LibRaw::wavelet_denoise()
   temp = fimg + size * 3;
   if ((nc = colors) == 3 && filters)
     nc++;
+// Note: GCD (dispatch_apply) is not supported for wavelet_denoise due to its
+// structured parallel region with thread-local allocations and multiple
+// sequential parallel-for loops. Wavelet denoising is off by default.
 #pragma omp parallel default(shared) private(                                  \
     i, col, row, thold, lev, lpass, hpass, temp, c) firstprivate(scale, size)
   {

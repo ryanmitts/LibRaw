@@ -128,16 +128,22 @@ void LibRaw::panasonicC8_load_raw()
 void LibRaw::pana8_decode_loop(void *data)
 {
 #ifdef LIBRAW_USE_OPENMP
-	int errs = 0, scount = MIN(5,libraw_internal_data.unpacker_data.pana8.stripe_count);
-#pragma omp parallel for 
+	int errs = 0;
+	int scount = MIN(5,libraw_internal_data.unpacker_data.pana8.stripe_count);
+#pragma omp parallel for
   for (int stream = 0; stream < scount; stream++)
   {
 		if (pana8_decode_strip(data, stream))
+		{
+#pragma omp atomic
 			errs++;
+		}
   }
 	if(errs)
       throw LIBRAW_EXCEPTION_IO_CORRUPT;
 #else
+  // GCD not used here: pana8_decode_strip reads from a shared file stream
+  // that is not thread-safe for concurrent seek+read operations.
   for (int stream = 0; stream < libraw_internal_data.unpacker_data.pana8.stripe_count && stream < 5; stream++)
     if (pana8_decode_strip(data, stream))
       throw LIBRAW_EXCEPTION_IO_CORRUPT;

@@ -2621,18 +2621,23 @@ void LibRaw::crxLoadDecodeLoop(void *img, int nPlanes)
 {
 #ifdef LIBRAW_USE_OPENMP
   int results[4] ={0,0,0,0}; // nPlanes is always <= 4
+  int *resultsp = results;
 #pragma omp parallel for
   for (int32_t plane = 0; plane < nPlanes; ++plane)
+  {
    try {
-    results[plane] = crxDecodePlane(img, plane);
+    resultsp[plane] = crxDecodePlane(img, plane);
    } catch (...) {
-    results[plane] = 1;
+    resultsp[plane] = 1;
    }
+  }
 
   for (int32_t plane = 0; plane < nPlanes; ++plane)
     if (results[plane])
       derror();
 #else
+  // GCD not used here: crxDecodePlane reads from a shared file stream
+  // that is not thread-safe for concurrent seek+read operations.
   for (int32_t plane = 0; plane < nPlanes; ++plane)
     if (crxDecodePlane(img, plane))
       derror();
@@ -2646,8 +2651,18 @@ void LibRaw::crxLoadFinalizeLoopE3(void *p, int planeHeight)
 #ifdef LIBRAW_USE_OPENMP
 #pragma omp parallel for
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(planeHeight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) { const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < planeHeight; ++i)
+  {
+#endif
     crxConvertPlaneLineDf(p, i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
+  }
+#endif
 }
 
 void LibRaw::crxLoadRaw()

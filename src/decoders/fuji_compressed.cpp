@@ -1156,7 +1156,6 @@ void LibRaw::fuji_decode_loop(fuji_compressed_params *common_info, int count, IN
 #ifdef LIBRAW_USE_OPENMP
   unsigned errcnt = 0;
 #pragma omp parallel for private(cur_block) shared(errcnt)
-#endif
   for (cur_block = 0; cur_block < count; cur_block++)
   {
     try
@@ -1166,17 +1165,27 @@ void LibRaw::fuji_decode_loop(fuji_compressed_params *common_info, int count, IN
     }
     catch (...)
     {
-#ifdef LIBRAW_USE_OPENMP
 #pragma omp atomic
 		  errcnt++;
-#else
-		  throw;
-#endif
 	  }
   }
-#ifdef LIBRAW_USE_OPENMP
   if (errcnt)
 		  throw LIBRAW_EXCEPTION_IO_EOF;
+#else
+  // GCD not used here: fuji_decode_strip reads from a shared file stream
+  // that is not thread-safe for concurrent seek+read operations.
+  for (cur_block = 0; cur_block < count; cur_block++)
+  {
+    try
+    {
+      fuji_decode_strip(common_info, cur_block, raw_block_offsets[cur_block], block_sizes[cur_block],
+                        q_bases ? q_bases + cur_block * lineStep : 0);
+    }
+    catch (...)
+    {
+		  throw;
+	  }
+  }
 #endif
 }
 

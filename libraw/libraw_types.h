@@ -76,6 +76,18 @@ typedef unsigned __int64 uint64_t;
 #include <omp.h>
 #endif
 
+/* GCD (Grand Central Dispatch) parallelism for Apple platforms.
+   Enabled automatically on Apple when OpenMP is not available. */
+#if !defined(LIBRAW_USE_OPENMP) && (defined(__APPLE__) || defined(__MACOSX__))
+#define LIBRAW_USE_GCD
+#include <dispatch/dispatch.h>
+#endif
+
+/* Unified threading: at least one parallel backend is available */
+#if defined(LIBRAW_USE_OPENMP) || defined(LIBRAW_USE_GCD)
+#define LIBRAW_USE_PARALLEL
+#endif
+
 #ifdef __cplusplus
 extern "C"
 {
