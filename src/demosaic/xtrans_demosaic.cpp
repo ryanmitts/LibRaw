@@ -167,6 +167,8 @@ void LibRaw::xtrans_interpolate(int passes)
 
 #if defined(LIBRAW_USE_OPENMP)
   int buffer_count = omp_get_max_threads();
+#elif defined(LIBRAW_USE_GCD)
+  int buffer_count = 1; /* GCD path allocates per-iteration */
 #else
   int buffer_count = 1;
 #endif
@@ -181,9 +183,22 @@ void LibRaw::xtrans_interpolate(int passes)
 #if defined(LIBRAW_USE_OPENMP)
 # pragma omp parallel for schedule(dynamic) default(none) firstprivate(buffers, allhex, passes, sgrow, sgcol, ndir) shared(dir, destimage) 
 #endif
+#ifdef LIBRAW_USE_GCD
+    int _gcd_top_count = 0;
+    for (int _t = 3; _t < height - 19; _t += LIBRAW_AHD_TILE - 16) _gcd_top_count++;
+    // Capture array via heap pointer for block (C arrays can't be captured)
+    void *_allhex_p = (void *)allhex;
+    dispatch_apply(_gcd_top_count, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+        int top = 3 + (int)_gcd_i * (LIBRAW_AHD_TILE - 16);
+        // Recover typed pointer inside block (sgrow/sgcol are scalars, captured fine)
+        short (*allhex)[3][2][8] = (short (*)[3][2][8])_allhex_p;
+#else
     for (int top = 3; top < height - 19; top += LIBRAW_AHD_TILE - 16)
     {
-#if defined(LIBRAW_USE_OPENMP)
+#endif
+#ifdef LIBRAW_USE_GCD
+        char* buffer = (char*)malloc(buffer_size);
+#elif defined(LIBRAW_USE_OPENMP)
         char* buffer = buffers[omp_get_thread_num()];
 #else
         char* buffer = buffers[0];
@@ -427,8 +442,13 @@ void LibRaw::xtrans_interpolate(int passes)
                     FORC3 destimage[(row + top) * width + col + left][c] = avg[c] / avg[3];
                 }
         }
+#ifdef LIBRAW_USE_GCD
+        free(buffer);
+    });
+#else
     }
-  
+#endif
+
 #ifdef LIBRAW_USE_OPENMP
 #pragma omp barrier
 #endif

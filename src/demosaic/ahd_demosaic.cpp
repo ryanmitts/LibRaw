@@ -298,6 +298,8 @@ void LibRaw::ahd_interpolate()
 
 #ifdef LIBRAW_USE_OPENMP
     int buffer_count = omp_get_max_threads();
+#elif defined(LIBRAW_USE_GCD)
+    int buffer_count = 1; /* GCD path allocates per-iteration */
 #else
     int buffer_count = 1;
 #endif
@@ -308,11 +310,19 @@ void LibRaw::ahd_interpolate()
 #ifdef LIBRAW_USE_OPENMP
 #pragma omp parallel for schedule(dynamic) default(none) shared(terminate_flag) firstprivate(buffers)
 #endif
+#ifdef LIBRAW_USE_GCD
+    int _gcd_top_count = 0;
+    for (int _t = 2; _t < height - 5; _t += LIBRAW_AHD_TILE - 6) _gcd_top_count++;
+    dispatch_apply(_gcd_top_count, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+        int top = 2 + (int)_gcd_i * (LIBRAW_AHD_TILE - 6);
+#else
     for (int top = 2; top < height - 5; top += LIBRAW_AHD_TILE - 6)
     {
+#endif
 #ifdef LIBRAW_USE_OPENMP
         if (0 == omp_get_thread_num())
 #endif
+#ifndef LIBRAW_USE_GCD
             if (callbacks.progress_cb)
             {
                 int rr = (*callbacks.progress_cb)(callbacks.progresscb_data,
@@ -321,8 +331,11 @@ void LibRaw::ahd_interpolate()
                 if (rr)
                     terminate_flag = 1;
             }
+#endif
 
-#if defined(LIBRAW_USE_OPENMP)
+#ifdef LIBRAW_USE_GCD
+        char* buffer = (char*)malloc(buffer_size);
+#elif defined(LIBRAW_USE_OPENMP)
         char* buffer = buffers[omp_get_thread_num()];
 #else
         char* buffer = buffers[0];
@@ -346,7 +359,12 @@ void LibRaw::ahd_interpolate()
             ahd_interpolate_build_homogeneity_map(top, left, lab, homo);
             ahd_interpolate_combine_homogeneous_pixels(top, left, rgb, homo);
         }
+#ifdef LIBRAW_USE_GCD
+        free(buffer);
+    });
+#else
     }
+#endif
 
     free_omp_buffers(buffers, buffer_count);
 

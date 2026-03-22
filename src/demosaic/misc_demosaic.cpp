@@ -363,6 +363,7 @@ void LibRaw::vng_interpolate()
 void LibRaw::ppg_interpolate()
 {
   int dir[5] = {1, width, -1, -width, 1};
+  int *dirp = dir;  // pointer for GCD block capture
   int row, col, diff[2], guess[2], c, d, i;
   ushort(*pix)[4];
 
@@ -374,7 +375,13 @@ void LibRaw::ppg_interpolate()
 #pragma omp parallel for default(shared) private(guess, diff, row, col, d, c,  \
                                                  i, pix) schedule(static)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(height - 3 - 3, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) { const int row = (int)(3 + _gcd_i);
+    int guess[2], diff[2], col, d, c, i; ushort(*pix)[4]; const int *dir = dirp;
+#else
   for (row = 3; row < height - 3; row++)
+  {
+#endif
     for (col = 3 + (FC(row, 3) & 1), c = FC(row, col); col < width - 3;
          col += 2)
     {
@@ -395,13 +402,24 @@ void LibRaw::ppg_interpolate()
       d = dir[i = diff[0] > diff[1]];
       pix[0][1] = ULIM(guess[i] >> 2, pix[d][1], pix[-d][1]);
     }
+#ifdef LIBRAW_USE_GCD
+  });
+#else
+  }
+#endif
   /*  Calculate red and blue for each green pixel:		*/
   RUN_CALLBACK(LIBRAW_PROGRESS_INTERPOLATE, 1, 3);
 #ifdef LIBRAW_USE_OPENMP
 #pragma omp parallel for default(shared) private(guess, diff, row, col, d, c,  \
                                                  i, pix) schedule(static)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(height - 1 - 1, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) { const int row = (int)(1 + _gcd_i);
+    int guess[2], diff[2], col, d, c, i; ushort(*pix)[4]; const int *dir = dirp;
+#else
   for (row = 1; row < height - 1; row++)
+  {
+#endif
     for (col = 1 + (FC(row, 2) & 1), c = FC(row, col + 1); col < width - 1;
          col += 2)
     {
@@ -414,13 +432,24 @@ void LibRaw::ppg_interpolate()
             1);
       }
     }
+#ifdef LIBRAW_USE_GCD
+  });
+#else
+  }
+#endif
   /*  Calculate blue for red pixels and vice versa:		*/
   RUN_CALLBACK(LIBRAW_PROGRESS_INTERPOLATE, 2, 3);
 #ifdef LIBRAW_USE_OPENMP
 #pragma omp parallel for default(shared) private(guess, diff, row, col, d, c,  \
                                                  i, pix) schedule(static)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(height - 1 - 1, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) { const int row = (int)(1 + _gcd_i);
+    int guess[2], diff[2], col, d, c, i; ushort(*pix)[4]; const int *dir = dirp;
+#else
   for (row = 1; row < height - 1; row++)
+  {
+#endif
     for (col = 1 + (FC(row, 1) & 1), c = 2 - FC(row, col); col < width - 1;
          col += 2)
     {
@@ -438,4 +467,9 @@ void LibRaw::ppg_interpolate()
       else
         pix[0][c] = CLIP((guess[0] + guess[1]) >> 2);
     }
+#ifdef LIBRAW_USE_GCD
+  });
+#else
+  }
+#endif
 }

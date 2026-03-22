@@ -261,8 +261,13 @@ void DHT::hide_hots()
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided) firstprivate(iwidth)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     int js = libraw.COLOR(i, 0) & 1;
     int kc = libraw.COLOR(i, js);
     /*
@@ -391,7 +396,11 @@ void DHT::hide_hots()
         }
       }
     }
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void DHT::restore_hots()
@@ -404,8 +413,13 @@ void DHT::restore_hots()
 #pragma omp parallel for schedule(guided) firstprivate(iwidth) collapse(2)
 #endif
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     for (int j = 0; j < iwidth; ++j)
     {
       int x = j + nr_leftmargin;
@@ -417,7 +431,11 @@ void DHT::restore_hots()
             libraw.imgdata.image[i * iwidth + j][l];
       }
     }
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void DHT::make_diag_dirs()
@@ -425,10 +443,19 @@ void DHT::make_diag_dirs()
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     make_diag_dline(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 //#if defined(LIBRAW_USE_OPENMP)
 //#pragma omp parallel for schedule(guided)
 //#endif
@@ -444,10 +471,19 @@ void DHT::make_diag_dirs()
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     refine_idiag_dirs(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void DHT::make_hv_dirs()
@@ -455,31 +491,67 @@ void DHT::make_hv_dirs()
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     make_hv_dline(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     refine_hv_dirs(i, i & 1);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     refine_hv_dirs(i, (i & 1) ^ 1);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     refine_ihv_dirs(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void DHT::refine_hv_dirs(int i, int js)
@@ -691,10 +763,19 @@ void DHT::make_greens()
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     make_gline(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void DHT::make_gline(int i)
@@ -767,10 +848,19 @@ void DHT::illustrate_dirs()
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     illustrate_dline(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 void DHT::illustrate_dline(int i)
@@ -958,18 +1048,36 @@ void DHT::make_rb()
 #pragma omp barrier
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     make_rbdiag(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 #if defined(LIBRAW_USE_OPENMP)
 #pragma omp barrier
 #pragma omp parallel for schedule(guided)
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     make_rbhv(i);
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 /*
@@ -985,8 +1093,13 @@ void DHT::copy_to_image()
 #pragma omp parallel for schedule(guided) collapse(2)
 #endif
 #endif
+#ifdef LIBRAW_USE_GCD
+  dispatch_apply(libraw.imgdata.sizes.iheight, DISPATCH_APPLY_AUTO, ^(size_t _gcd_i) {
+  const int i = (int)_gcd_i;
+#else
   for (int i = 0; i < libraw.imgdata.sizes.iheight; ++i)
   {
+#endif
     for (int j = 0; j < iwidth; ++j)
     {
       libraw.imgdata.image[i * iwidth + j][0] =
@@ -1000,7 +1113,11 @@ void DHT::copy_to_image()
               (unsigned short)(nraw[nr_offset(i + nr_topmargin,
                                               j + nr_leftmargin)][1]);
     }
+#ifdef LIBRAW_USE_GCD
+  });
+#else
   }
+#endif
 }
 
 DHT::~DHT()
